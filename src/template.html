@@ -1,0 +1,968 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Habla Conmigo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#1f3a4d">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+/* Habla Conmigo — version __VERSION__
+   Layout: sentence strip on top, big category rail + picture grid below. Tile colors follow the Fitzgerald Key used on AAC boards. */
+@font-face { font-family: "Atkinson Hyperlegible"; font-weight: 400; font-display: swap; src: url(__FONT400__) format("woff2"); }
+@font-face { font-family: "Atkinson Hyperlegible"; font-weight: 700; font-display: swap; src: url(__FONT700__) format("woff2"); }
+:root {
+  --bg: #f3f1ec; --surface: #ffffff; --ink: #1d2128; --muted: #59606c; --line: #d6d1c6;
+  --strip: #1f3a4d; --strip-ink: #ffffff; --speak: #1f7a4d; --speak-ink: #ffffff;
+  --danger: #b2382a; --edit: #f2a900; --edit-ink: #1d2128; --drop: #1f7a4d; --pic-bg: rgba(255,255,255,.75);
+  --k-social: #f7d3e3; --k-pain: #ffd9d4; --k-verb: #cfeac8; --k-person: #fbeaa0;
+  --k-noun: #fbd5b0; --k-desc: #c9def5; --k-quest: #e0d3f2; --k-time: #e3e3e3;
+  --font: "Atkinson Hyperlegible", "Segoe UI", Roboto, system-ui, sans-serif;
+  --tile: 180px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15181d; --surface: #20242b; --ink: #f1f0ec; --muted: #a9afba; --line: #3a3f48;
+    --strip: #0d2433; --speak: #2a9d63; --danger: #ef7d6e; --drop: #3fbf7f; --pic-bg: rgba(255,255,255,.9);
+    --k-social: #5a2f43; --k-pain: #5e2a25; --k-verb: #2f4f2a; --k-person: #5a4c14;
+    --k-noun: #5c3c1e; --k-desc: #23405f; --k-quest: #3f3060; --k-time: #3a3d42;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15181d; --surface: #20242b; --ink: #f1f0ec; --muted: #a9afba; --line: #3a3f48;
+  --strip: #0d2433; --speak: #2a9d63; --danger: #ef7d6e; --drop: #3fbf7f; --pic-bg: rgba(255,255,255,.9);
+  --k-social: #5a2f43; --k-pain: #5e2a25; --k-verb: #2f4f2a; --k-person: #5a4c14;
+  --k-noun: #5c3c1e; --k-desc: #23405f; --k-quest: #3f3060; --k-time: #3a3d42;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 18px;
+  -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
+  display: flex; flex-direction: column; overscroll-behavior: none;
+}
+button { font-family: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, select:focus-visible, input:focus-visible, label.btn:focus-within { outline: 4px solid var(--edit); outline-offset: 2px; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+img { display: block; -webkit-user-drag: none; }
+
+/* Sentence strip */
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--strip); }
+.strip {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--strip); color: var(--strip-ink);
+  padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px));
+  padding-block: 10px; display: flex; gap: 10px; align-items: stretch;
+}
+.sentence {
+  flex: 1; min-width: 0; min-height: 104px; border-radius: 14px; background: rgba(255,255,255,.1);
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 12px;
+  font-size: clamp(22px, 3.2vw, 34px); font-weight: 700; line-height: 1.15;
+}
+.sentence .placeholder { font-weight: 400; opacity: .65; font-size: .68em; }
+.chip { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,.14); border-radius: 12px; padding: 4px 12px 4px 4px; }
+.chip .pic { width: 64px; height: 64px; border-radius: 10px; background: var(--pic-bg); padding: 4px; flex-shrink: 0; }
+.chip .pic img { width: 100%; height: 100%; object-fit: contain; }
+.chip .pic.photo { padding: 0; } .chip .pic.photo img { object-fit: cover; border-radius: 10px; }
+.sbtn {
+  border: 0; border-radius: 14px; min-width: 92px; padding: 8px 10px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  font-size: 17px; font-weight: 700; background: rgba(255,255,255,.14); color: var(--strip-ink);
+}
+.sbtn svg { width: 34px; height: 34px; }
+.sbtn.speak { background: var(--speak); color: var(--speak-ink); min-width: 132px; font-size: 21px; }
+.sbtn.speak svg { width: 44px; height: 44px; }
+.sbtn:active { transform: scale(.96); }
+
+/* Main */
+.main { flex: 1; min-height: 0; display: flex; }
+.rail {
+  display: flex; flex-direction: column; gap: 8px; overflow-y: auto; flex-shrink: 0; width: 190px;
+  padding-block: 12px 70px; padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: 4px;
+}
+.cat {
+  border: 3px solid transparent; border-radius: 14px; padding: 6px 8px; text-align: left;
+  display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; min-height: 72px;
+}
+.cat img { width: 52px; height: 52px; flex-shrink: 0; }
+.cat img.photo { object-fit: cover; border-radius: 8px; }
+.cat[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 3px 0 var(--ink); }
+.cat.addcat { background: var(--surface); border: 2px dashed var(--line); color: var(--muted); justify-content: center; }
+.board { flex: 1; min-width: 0; overflow-y: auto; padding-block: 12px 80px; padding-left: 8px; padding-right: max(12px, env(safe-area-inset-right, 0px)); }
+.board-head { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; flex-wrap: wrap; }
+.board-head h2 { margin: 0; font-size: 22px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(var(--tile), 100%), 1fr)); gap: 12px; }
+.tile {
+  position: relative; border: 2px solid var(--line); border-radius: 18px; padding: 10px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 8px; text-align: center;
+  font-size: clamp(18px, 2vw, 23px); font-weight: 700; line-height: 1.15; transition: transform .08s;
+}
+.tile .pic { aspect-ratio: 1; width: 100%; border-radius: 12px; background: var(--pic-bg); padding: 8%; }
+.tile .pic img { width: 100%; height: 100%; object-fit: contain; }
+.tile .pic.photo { padding: 0; } .tile .pic.photo img { object-fit: cover; border-radius: 12px; }
+.tile .lbl { min-height: 1.15em; overflow-wrap: anywhere; }
+.tile.nav::after { content: "›"; position: absolute; top: 4px; right: 12px; font-size: 34px; line-height: 1; }
+.tile:active, .tile.hit { transform: scale(.95); }
+.no-labels .tile .lbl { display: none; }
+.k-social { background: var(--k-social); } .k-pain { background: var(--k-pain); } .k-verb { background: var(--k-verb); }
+.k-person { background: var(--k-person); } .k-noun { background: var(--k-noun); } .k-desc { background: var(--k-desc); }
+.k-quest { background: var(--k-quest); } .k-time { background: var(--k-time); }
+
+/* Edit mode */
+.editbar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 6; background: var(--edit); color: var(--edit-ink);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+.editbar .title { flex: 1; min-width: 220px; font-weight: 700; font-size: 18px; }
+.editbar .title small { display: block; font-weight: 400; font-size: 14px; }
+.ebtn { border: 2px solid var(--edit-ink); background: transparent; color: var(--edit-ink); border-radius: 10px; padding: 9px 14px; font-size: 16px; font-weight: 700; }
+.ebtn.solid { background: var(--edit-ink); color: var(--edit); }
+.editing .strip { display: none; }
+.editing .tile { outline: 3px dashed var(--edit); outline-offset: -3px; touch-action: pan-y; }
+.editing .tile::before { content: "✎"; position: absolute; top: 6px; left: 10px; font-size: 22px; background: var(--edit); color: var(--edit-ink); border-radius: 999px; width: 32px; height: 32px; display: grid; place-items: center; z-index: 1; }
+.tile.add { background: var(--surface); border-style: dashed; justify-content: center; color: var(--muted); }
+.tile.add .plus { font-size: 64px; line-height: 1; }
+.editing .tile.add { outline: none; }
+.editing .tile.add::before { display: none; }
+.tile.dragging { opacity: .25; }
+.tile.drop, .cat.drop { outline: 5px solid var(--drop); outline-offset: 2px; }
+.ghost { position: fixed; z-index: 50; pointer-events: none; transform: scale(1.06); box-shadow: 0 12px 30px rgba(0,0,0,.35); opacity: .95; margin: 0; }
+
+/* Settings opener: hold to open */
+.gear {
+  position: fixed; right: max(10px, env(safe-area-inset-right, 0px)); bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 999px;
+  font-size: 14px; padding: 9px 16px; z-index: 6; overflow: hidden; touch-action: none;
+}
+.gear .fill { position: absolute; inset: 0; background: var(--edit); transform: scaleX(0); transform-origin: left; opacity: .5; }
+.gear.holding .fill { transform: scaleX(1); transition: transform 1.5s linear; }
+.gear span { position: relative; }
+.editing .gear { display: none; }
+.toast {
+  position: fixed; left: 50%; bottom: calc(64px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+  background: var(--ink); color: var(--bg); padding: 12px 18px; border-radius: 10px; font-size: 17px; z-index: 60; max-width: calc(100% - 32px); text-align: center;
+}
+
+/* Overlays */
+.overlay { position: fixed; inset: 0; z-index: 20; background: var(--bg); overflow-y: auto; }
+.show {
+  background: var(--surface); display: flex; align-items: center; justify-content: center; text-align: center;
+  padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px)); padding-block: 24px;
+}
+.show .pics { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; margin-bottom: 24px; }
+.show .pics .pic { width: clamp(120px, 22vw, 220px); aspect-ratio: 1; }
+.show .pics img { width: 100%; height: 100%; object-fit: contain; }
+.show .pics .photo img { object-fit: cover; border-radius: 16px; }
+.show .txt { font-size: clamp(40px, 7vw, 88px); font-weight: 700; line-height: 1.1; text-wrap: balance; }
+.show small { display: block; font-size: 18px; color: var(--muted); margin-top: 28px; }
+.panel { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 60px; }
+.panel .wrap { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+.panel h2 { margin: 0; font-size: 26px; text-wrap: balance; }
+.panel h3 { margin: 0; font-size: 19px; }
+.panel p { margin: 0; color: var(--muted); line-height: 1.45; }
+.head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.section { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+label { font-weight: 700; font-size: 16px; }
+select, input[type="text"] {
+  font: inherit; font-size: 19px; padding: 12px; border-radius: 10px; border: 2px solid var(--line);
+  background: var(--surface); color: var(--ink); width: 100%; user-select: text; -webkit-user-select: text;
+}
+input[type="range"] { width: 100%; }
+.check { display: flex; gap: 12px; align-items: center; font-weight: 700; }
+.check input { width: 26px; height: 26px; flex-shrink: 0; }
+.seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg button { border: 2px solid var(--line); background: var(--surface); border-radius: 10px; padding: 10px 16px; font-size: 17px; font-weight: 700; }
+.seg button[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: var(--bg); }
+.btn {
+  border: 0; border-radius: 12px; padding: 13px 18px; font-size: 18px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  background: var(--strip); color: var(--strip-ink); cursor: pointer;
+}
+.btn.ghost { background: transparent; border: 2px solid var(--line); color: var(--ink); }
+.btn.warn { background: transparent; border: 2px solid var(--danger); color: var(--danger); }
+.btn.big { flex: 1; min-width: 150px; }
+.note { font-size: 15px; }
+.note.alert { color: var(--danger); font-weight: 700; }
+.swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+.swatches button { width: 48px; height: 48px; border-radius: 10px; border: 2px solid var(--line); }
+.swatches button[aria-pressed="true"] { border: 4px solid var(--ink); }
+
+/* Editors */
+.ed-top { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.ed-preview { width: 200px; max-width: 100%; border-radius: 18px; padding: 10px; border: 2px solid var(--line); display: flex; flex-direction: column; gap: 8px; text-align: center; font-weight: 700; font-size: 20px; }
+.ed-preview .pic { aspect-ratio: 1; border-radius: 12px; background: var(--pic-bg); padding: 8%; }
+.ed-preview .pic img { width: 100%; height: 100%; object-fit: contain; }
+.ed-preview .pic.photo { padding: 0; } .ed-preview .pic.photo img { object-fit: cover; border-radius: 12px; }
+.ed-actions { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 10px; }
+.lib { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; max-height: 340px; overflow-y: auto; padding: 4px; }
+.lib button { border: 2px solid var(--line); border-radius: 10px; background: var(--pic-bg); padding: 6px; aspect-ratio: 1; }
+.lib button img { width: 100%; height: 100%; object-fit: contain; }
+.lib button[aria-pressed="true"] { border-color: var(--ink); border-width: 3px; }
+
+@media (max-width: 760px) {
+  .main { flex-direction: column; }
+  .rail { flex-direction: row; width: auto; overflow-x: auto; overflow-y: hidden; padding-right: max(12px, env(safe-area-inset-right, 0px)); padding-block: 10px 4px; flex-shrink: 0; }
+  .cat { flex-shrink: 0; min-height: 64px; font-size: 16px; }
+  .cat img { width: 42px; height: 42px; }
+  .board { padding-left: max(12px, env(safe-area-inset-left, 0px)); }
+  .strip { flex-wrap: wrap; }
+  .sentence { flex-basis: 100%; min-height: 80px; }
+  .chip .pic { width: 48px; height: 48px; }
+  .sbtn { flex: 1; min-width: 0; padding: 8px 4px; font-size: 15px; }
+  .sbtn.speak { flex: 2; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tile, .sbtn { transition: none; }
+  .tile:active, .tile.hit, .sbtn:active { transform: none; }
+  .gear.holding .fill { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="editbar" id="editbar" hidden>
+  <div class="title">Modo editar<small>Toque un dibujo para cambiarlo o borrarlo. Manténgalo presionado y arrástrelo para moverlo a otra categoría.</small></div>
+  <button class="ebtn" id="eEditCat">Editar esta categoría</button>
+  <button class="ebtn" id="eAddCat">+ Categoría</button>
+  <button class="ebtn" id="eSettings">Ajustes</button>
+  <button class="ebtn solid" id="eDone">Listo</button>
+</div>
+
+<header class="strip">
+  <div class="sentence" id="sentence" aria-live="polite"></div>
+  <button class="sbtn" id="btnBack" aria-label="Borrar la última palabra">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H9l-6 7 6 7h12z"/><path d="M17 9l-6 6M11 9l6 6"/></svg>Borrar</button>
+  <button class="sbtn" id="btnClear" aria-label="Empezar de nuevo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>Limpiar</button>
+  <button class="sbtn" id="btnShow" aria-label="Mostrar en grande">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Mostrar</button>
+  <button class="sbtn speak" id="btnSpeak" aria-label="Decir la frase">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>Hablar</button>
+</header>
+
+<div class="main">
+  <nav class="rail" id="rail" aria-label="Categorías"></nav>
+  <section class="board" id="board"></section>
+</div>
+
+<button class="gear" id="btnSettings" aria-label="Ajustes: mantener presionado"><span class="fill"></span><span>Ajustes (mantener)</span></button>
+<div class="toast" id="toast" hidden></div>
+
+<div class="overlay show" id="showView" hidden role="dialog" aria-label="Frase en grande">
+  <div><div class="pics" id="showPics"></div><div class="txt" id="showText"></div><small>Toque la pantalla para volver</small></div>
+</div>
+
+<!-- Settings -->
+<div class="overlay panel" id="settingsView" hidden role="dialog" aria-label="Ajustes">
+  <div class="wrap">
+    <div class="head"><h2>Ajustes para la familia</h2><button class="btn" id="sClose">Volver al tablero</button></div>
+
+    <div class="section">
+      <h3>Dibujos, palabras y categorías</h3>
+      <p>Cambie dibujos por fotos reales, borre palabras repetidas, muévalas de categoría, o añada, cambie y borre categorías.</p>
+      <button class="btn" id="sEdit">Cambiar dibujos y categorías</button>
+    </div>
+
+    <div class="section">
+      <h3>Voz</h3>
+      <div class="field"><label for="voiceSel">Voz en español</label><select id="voiceSel"></select></div>
+      <div class="field"><label for="rate">Velocidad: <span id="rateVal"></span></label><input type="range" id="rate" min="0.6" max="1.2" step="0.05"></div>
+      <label class="check"><input type="checkbox" id="speakEach"> Decir cada palabra al tocarla</label>
+      <div class="row"><button class="btn ghost" id="btnTest">Probar la voz</button></div>
+      <p class="note" id="voiceNote"></p>
+    </div>
+
+    <div class="section">
+      <h3>Pantalla</h3>
+      <div class="field"><label>Tamaño de los dibujos</label>
+        <div class="seg" id="sizeSeg"><button data-v="150">Normal</button><button data-v="185">Grande</button><button data-v="240">Muy grande</button></div></div>
+      <label class="check"><input type="checkbox" id="showLabels"> Mostrar las palabras debajo de los dibujos</label>
+      <label class="check"><input type="checkbox" id="guard"> Ignorar toques dobles (ayuda si la mano tiembla)</label>
+    </div>
+
+    <div class="section">
+      <h3>Copia de seguridad</h3>
+      <p>Guarda todos los dibujos, fotos, categorías y ajustes en un archivo. Sirve para no perder nada si se borra o se cambia la tableta.</p>
+      <div class="row">
+        <button class="btn" id="bExport">Guardar copia</button>
+        <label class="btn ghost" for="bImport">Restaurar una copia</label><input class="vh" type="file" id="bImport" accept=".json,application/json">
+      </div>
+      <p class="note" id="backupMsg"></p>
+    </div>
+
+    <div class="section">
+      <h3>Aplicación</h3>
+      <div class="row">
+        <button class="btn" id="bInstall" hidden>Instalar en la pantalla de inicio</button>
+        <button class="btn ghost" id="bUpdate">Buscar actualización</button>
+        <button class="btn warn" id="bReset">Volver al tablero original</button>
+      </div>
+      <p class="note" id="appMsg"></p>
+      <p class="note">Versión __VERSION__. Dibujos: OpenMoji (openmoji.org), CC BY-SA 4.0. Letra: Atkinson Hyperlegible (Braille Institute), SIL OFL.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Tile editor -->
+<div class="overlay panel" id="tileView" hidden role="dialog" aria-label="Cambiar dibujo">
+  <div class="wrap">
+    <div class="head"><h2 id="tTitle">Cambiar dibujo</h2><button class="btn ghost" id="tCancel">Cancelar</button></div>
+    <div class="ed-top">
+      <div class="ed-preview" id="tPreview"><div class="pic"><img alt=""></div><div></div></div>
+      <div class="ed-actions">
+        <label class="btn" for="tCamera">Tomar una foto</label><input class="vh" type="file" id="tCamera" accept="image/*" capture="environment">
+        <label class="btn ghost" for="tFile">Elegir foto de la galería</label><input class="vh" type="file" id="tFile" accept="image/*">
+        <p class="note" id="tPhotoMsg"></p>
+      </div>
+    </div>
+    <div class="field"><label for="tText">Lo que dice en voz alta</label>
+      <div class="row"><input type="text" id="tText" style="flex:1;min-width:0"><button class="btn ghost" id="tHear">Escuchar</button></div></div>
+    <div class="field"><label for="tCat">Categoría</label><select id="tCat"></select></div>
+    <div class="field"><label for="tAction">Al tocarlo</label><select id="tAction"></select></div>
+    <div class="field"><label>O elija un dibujo</label><div class="lib" id="tLib"></div></div>
+    <p class="note" id="tMsg"></p>
+    <div class="row"><button class="btn big" id="tSave">Guardar</button><button class="btn warn" id="tDelete">Borrar este dibujo</button></div>
+  </div>
+</div>
+
+<!-- Category editor -->
+<div class="overlay panel" id="catView" hidden role="dialog" aria-label="Categoría">
+  <div class="wrap">
+    <div class="head"><h2 id="cTitle">Categoría</h2><button class="btn ghost" id="cCancel">Cancelar</button></div>
+    <div class="ed-top">
+      <div class="ed-preview" id="cPreview"><div class="pic"><img alt=""></div><div></div></div>
+      <div class="ed-actions">
+        <label class="btn" for="cCamera">Tomar una foto</label><input class="vh" type="file" id="cCamera" accept="image/*" capture="environment">
+        <label class="btn ghost" for="cFile">Elegir foto de la galería</label><input class="vh" type="file" id="cFile" accept="image/*">
+        <p class="note" id="cPhotoMsg"></p>
+      </div>
+    </div>
+    <div class="field"><label for="cName">Nombre</label><input type="text" id="cName"></div>
+    <div class="field"><label>Cómo funcionan los dibujos</label>
+      <div class="seg" id="cMode"><button data-v="say">Frase completa: habla al tocar</button><button data-v="word">Palabras para formar frases</button></div></div>
+    <div class="field"><label>Color</label><div class="swatches" id="cColors"></div></div>
+    <div class="field" id="cOrderRow"><label>Posición en la lista</label>
+      <div class="row"><button class="btn ghost" id="cUp">▲ Subir</button><button class="btn ghost" id="cDown">▼ Bajar</button><span class="note" id="cPos"></span></div></div>
+    <div class="field"><label>O elija un dibujo</label><div class="lib" id="cLib"></div></div>
+    <p class="note" id="cMsg"></p>
+    <div class="row"><button class="btn big" id="cSave">Guardar</button><button class="btn warn" id="cDelete">Borrar categoría</button></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  const DEFAULT_BOARD = /*__BOARD__*/;
+  const ICONS = /*__ICONS__*/;
+  const LIBRARY = /*__LIBRARY__*/;
+  const COLORS = ["social", "pain", "verb", "person", "noun", "desc", "quest", "time"];
+  const $ = id => document.getElementById(id);
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const norm = s => s.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[¿?¡!.,…]/g, "");
+
+  // =====================================================================
+  // Storage: IndexedDB (board, settings, photos); falls back to localStorage.
+  // =====================================================================
+  let idb = null;
+  const memKV = {};
+  function openDB() {
+    return new Promise(res => {
+      try {
+        const r = indexedDB.open("habla-conmigo", 1);
+        r.onupgradeneeded = () => { r.result.createObjectStore("kv"); r.result.createObjectStore("photos"); };
+        r.onsuccess = () => res(r.result); r.onerror = () => res(null); r.onblocked = () => res(null);
+      } catch (e) { res(null); }
+    });
+  }
+  function idbReq(store, mode, fn) {
+    return new Promise(res => {
+      if (!idb) return res(undefined);
+      try { const tx = idb.transaction(store, mode); const rq = fn(tx.objectStore(store)); tx.oncomplete = () => res(rq ? rq.result : true); tx.onerror = () => res(undefined); }
+      catch (e) { res(undefined); }
+    });
+  }
+  async function kvGet(k) {
+    if (idb) { const v = await idbReq("kv", "readonly", s => s.get(k)); if (v !== undefined) return v; }
+    try { const v = localStorage.getItem("hc4_" + k); if (v != null) return JSON.parse(v); } catch (e) {}
+    return memKV[k];
+  }
+  async function kvSet(k, v) {
+    memKV[k] = v;
+    let ok = false;
+    if (idb) ok = (await idbReq("kv", "readwrite", s => s.put(clone(v), k))) !== undefined;
+    if (!ok) { try { localStorage.setItem("hc4_" + k, JSON.stringify(v)); ok = true; } catch (e) {} }
+    return ok;
+  }
+  const photos = new Map();
+  async function loadPhotos() {
+    if (!idb) return;
+    await new Promise(res => {
+      try {
+        const rq = idb.transaction("photos", "readonly").objectStore("photos").openCursor();
+        rq.onsuccess = () => { const c = rq.result; if (c) { photos.set(c.key, c.value); c.continue(); } else res(); };
+        rq.onerror = () => res();
+      } catch (e) { res(); }
+    });
+  }
+  async function putPhoto(id, data) {
+    photos.set(id, data);
+    if (!idb) return false;
+    return (await idbReq("photos", "readwrite", s => s.put(data, id))) !== undefined;
+  }
+  function delPhoto(id) { photos.delete(id); if (idb) idbReq("photos", "readwrite", s => s.delete(id)); }
+
+  // =====================================================================
+  // State
+  // =====================================================================
+  const DEFAULT_SETTINGS = { voice: "", rate: 0.85, speakEach: true, cat: "", tile: 185, labels: true, guard: true };
+  let board, settings;
+  let current = "", cameFrom = null, editMode = false;
+  let words = [], phraseShown = false, lastTap = 0;
+  const pageById = id => board.pages.find(p => p.id === id);
+  const save = () => kvSet("board", board).then(ok => { if (!ok) toast("No se pudo guardar en este aparato."); });
+  const saveSettings = () => kvSet("settings", settings);
+
+  // =====================================================================
+  // Pictures
+  // =====================================================================
+  const urlCache = {};
+  function iconURL(key) {
+    if (key && key.startsWith("photo:")) return photos.get(key.slice(6)) || iconURL("❓");
+    if (key && !urlCache[key] && ICONS[key]) urlCache[key] = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(ICONS[key]);
+    return (key && urlCache[key]) || (key === "❓" ? "" : iconURL("❓"));
+  }
+  const isPhoto = key => !!key && key.startsWith("photo:");
+  function picEl(key) {
+    const d = document.createElement("div"); d.className = "pic" + (isPhoto(key) ? " photo" : "");
+    const img = document.createElement("img"); img.alt = ""; img.draggable = false; img.src = iconURL(key);
+    d.appendChild(img); return d;
+  }
+
+  // =====================================================================
+  // Speech (Latin American voices first)
+  // =====================================================================
+  const synth = window.speechSynthesis;
+  let voices = [];
+  const rank = v => {
+    const l = v.lang.toLowerCase().replace("_", "-");
+    if (l === "es-mx") return 0; if (l === "es-us") return 1; if (l === "es-419") return 2;
+    if (/^es-(co|ar|cl|pe|ve|ec|gt|cu|do|hn|ni|pa|py|pr|sv|uy|bo|cr)$/.test(l)) return 3;
+    return l === "es-es" ? 9 : 5;
+  };
+  function loadVoices() {
+    voices = synth ? synth.getVoices().filter(v => /^es([-_]|$)/i.test(v.lang)).sort((a, b) => rank(a) - rank(b)) : [];
+    const sel = $("voiceSel"); sel.innerHTML = "";
+    if (!voices.length) { const o = document.createElement("option"); o.value = ""; o.textContent = "Voz en español del aparato"; sel.appendChild(o); }
+    voices.forEach(v => {
+      const o = document.createElement("option"); o.value = v.name;
+      o.textContent = v.name + " (" + v.lang + ")" + (rank(v) <= 3 ? " · Latinoamérica" : rank(v) === 9 ? " · España" : "");
+      if (v.name === settings.voice) o.selected = true; sel.appendChild(o);
+    });
+    $("voiceNote").textContent = !synth ? "Este navegador no puede hablar. Use Chrome, o «Mostrar» para enseñar la frase en grande."
+      : !voices.length ? "No aparece ninguna voz en español. En Ajustes de Android → Texto a voz, instale «Español (Estados Unidos)»."
+      : !voices.some(v => rank(v) <= 3) ? "Solo hay voces de España. En Ajustes de Android → Texto a voz, descargue «Español (Estados Unidos)»." : "";
+  }
+  function speak(text) {
+    if (!synth || !text) return;
+    try {
+      synth.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      const v = voices.find(x => x.name === settings.voice) || voices[0];
+      u.lang = v ? v.lang : "es-US"; if (v) u.voice = v;
+      u.rate = settings.rate;
+      setTimeout(() => { try { synth.resume(); synth.speak(u); } catch (e) {} }, 50);
+    } catch (e) {}
+  }
+
+  // =====================================================================
+  // Sentence strip
+  // =====================================================================
+  function sentenceText() {
+    if (!words.length) return "";
+    let s = words.map(w => w.t.replace(/…$/, "")).join(" ").replace(/\s+([?.!,])/g, "$1").trim();
+    s = s.startsWith("¿") ? "¿" + s.charAt(1).toUpperCase() + s.slice(2) : s.charAt(0).toUpperCase() + s.slice(1);
+    if (!/[.?!]$/.test(s)) s += ".";
+    return s;
+  }
+  function renderSentence() {
+    const el = $("sentence"); el.innerHTML = "";
+    if (!words.length) { const p = document.createElement("span"); p.className = "placeholder"; p.textContent = "Toque los dibujos"; el.appendChild(p); return; }
+    words.forEach(w => {
+      const c = document.createElement("span"); c.className = "chip";
+      c.appendChild(picEl(w.icon));
+      const t = document.createElement("span"); t.textContent = w.t; c.appendChild(t);
+      el.appendChild(c);
+    });
+  }
+  $("btnBack").onclick = () => { words.pop(); phraseShown = false; renderSentence(); };
+  $("btnClear").onclick = () => { words = []; phraseShown = false; renderSentence(); };
+  $("btnSpeak").onclick = () => speak(sentenceText());
+  $("btnShow").onclick = () => {
+    const pics = $("showPics"); pics.innerHTML = "";
+    words.forEach(w => pics.appendChild(picEl(w.icon)));
+    $("showText").textContent = sentenceText() || "…";
+    $("showView").hidden = false; speak(sentenceText());
+  };
+  $("showView").onclick = () => { $("showView").hidden = true; };
+
+  // =====================================================================
+  // Rail + board
+  // =====================================================================
+  function applyLook() {
+    document.documentElement.style.setProperty("--tile", settings.tile + "px");
+    document.body.classList.toggle("no-labels", !settings.labels);
+    document.body.classList.toggle("editing", editMode);
+    $("editbar").hidden = !editMode;
+  }
+  function render() { applyLook(); renderRail(); renderBoard(); }
+  function renderRail() {
+    const rail = $("rail"); rail.innerHTML = "";
+    board.pages.forEach(p => {
+      const b = document.createElement("button");
+      b.className = "cat k-" + p.k; b.dataset.page = p.id;
+      b.setAttribute("aria-pressed", p.id === current ? "true" : "false");
+      const img = document.createElement("img"); img.alt = ""; img.draggable = false; img.src = iconURL(p.icon);
+      if (isPhoto(p.icon)) img.className = "photo";
+      const s = document.createElement("span"); s.textContent = p.name;
+      b.append(img, s);
+      b.onclick = () => goTo(p.id, null);
+      rail.appendChild(b);
+    });
+    if (editMode) {
+      const a = document.createElement("button"); a.className = "cat addcat"; a.textContent = "+ Nueva categoría";
+      a.onclick = () => openCat(null); rail.appendChild(a);
+    }
+  }
+  function goTo(id, from) {
+    if (!pageById(id)) return;
+    current = id; cameFrom = from; settings.cat = id; saveSettings();
+    renderRail(); renderBoard(); $("board").scrollTop = 0;
+  }
+  function renderBoard() {
+    const page = pageById(current) || board.pages[0];
+    const el = $("board"); el.innerHTML = "";
+    if (!page) { const p = document.createElement("p"); p.textContent = "No hay categorías. Abra Ajustes para crear una."; el.appendChild(p); return; }
+    current = page.id;
+    const head = document.createElement("div"); head.className = "board-head";
+    const h = document.createElement("h2"); h.textContent = page.name; head.appendChild(h);
+    if (cameFrom && pageById(cameFrom) && !editMode) {
+      const back = document.createElement("button"); back.className = "btn ghost"; back.textContent = "‹ Volver";
+      back.onclick = () => goTo(cameFrom, null); head.appendChild(back);
+    }
+    el.appendChild(head);
+    const g = document.createElement("div"); g.className = "grid";
+    page.tiles.forEach(tile => {
+      if (tile.nav && !pageById(tile.nav)) return;
+      const b = document.createElement("button");
+      b.className = "tile k-" + page.k + (tile.nav ? " nav" : "");
+      b.dataset.tid = tile.id;
+      b.appendChild(picEl(tile.icon));
+      const l = document.createElement("span"); l.className = "lbl"; l.textContent = tile.t; b.appendChild(l);
+      b.setAttribute("aria-label", tile.t);
+      b.onclick = () => onTile(tile, page, b);
+      if (editMode) { attachDrag(b, tile); b.oncontextmenu = e => e.preventDefault(); }
+      g.appendChild(b);
+    });
+    if (editMode) {
+      const a = document.createElement("button"); a.className = "tile add";
+      a.innerHTML = '<span class="plus">+</span><span class="lbl">Añadir dibujo</span>';
+      a.onclick = () => openTile(null);
+      g.appendChild(a);
+    }
+    el.appendChild(g);
+  }
+  function onTile(tile, page, el) {
+    if (editMode) { if (!dragJustEnded) openTile(tile); return; }
+    const now = Date.now();
+    if (settings.guard && now - lastTap < 700) return;
+    lastTap = now;
+    el.classList.add("hit"); setTimeout(() => el.classList.remove("hit"), 140);
+    if (tile.nav) { goTo(tile.nav, page.id); return; }
+    if (page.mode === "say") {
+      words = [{ icon: tile.icon, t: tile.t }]; phraseShown = true; renderSentence(); speak(sentenceText());
+    } else {
+      if (phraseShown) { words = []; phraseShown = false; }
+      words.push({ icon: tile.icon, t: tile.t }); renderSentence();
+      if (settings.speakEach) speak(tile.t);
+    }
+  }
+
+  // =====================================================================
+  // Edit mode
+  // =====================================================================
+  function enterEdit() { editMode = true; cameFrom = null; $("settingsView").hidden = true; render(); }
+  $("eDone").onclick = () => { editMode = false; render(); };
+  $("eEditCat").onclick = () => openCat(current);
+  $("eAddCat").onclick = () => openCat(null);
+  $("eSettings").onclick = openSettings;
+
+  // ---------- Drag and drop: long-press a tile, drop on a tile (reorder) or a category (move) ----------
+  let drag = null, dragJustEnded = false;
+  function attachDrag(el, tile) {
+    const start = (x, y) => {
+      if (drag) return;
+      drag = { el, tile, x, y, active: false };
+      drag.timer = setTimeout(() => drag && drag.el === el && beginDrag(drag), 380);
+    };
+    el.addEventListener("touchstart", e => { if (e.touches.length === 1) start(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+    el.addEventListener("mousedown", e => { if (e.button === 0) start(e.clientX, e.clientY); });
+  }
+  function beginDrag(d) {
+    d.active = true;
+    const r = d.el.getBoundingClientRect();
+    const g = d.el.cloneNode(true); g.classList.add("ghost");
+    Object.assign(g.style, { width: r.width + "px", height: r.height + "px", left: r.left + "px", top: r.top + "px" });
+    document.body.appendChild(g);
+    d.ghost = g; d.dx = d.x - r.left; d.dy = d.y - r.top;
+    d.el.classList.add("dragging");
+    try { navigator.vibrate && navigator.vibrate(30); } catch (e) {}
+  }
+  const dropTarget = (x, y) => { const el = document.elementFromPoint(x, y); return el && el.closest(".cat[data-page], .tile[data-tid]"); };
+  function moveDrag(x, y) {
+    if (!drag) return;
+    if (!drag.active) { if (Math.hypot(x - drag.x, y - drag.y) > 10) { clearTimeout(drag.timer); drag = null; } return; }
+    drag.ghost.style.left = (x - drag.dx) + "px"; drag.ghost.style.top = (y - drag.dy) + "px";
+    document.querySelectorAll(".drop").forEach(e => e.classList.remove("drop"));
+    const t = dropTarget(x, y);
+    if (t && t !== drag.el && t.dataset.page !== current) t.classList.add("drop");
+    drag.lastX = x; drag.lastY = y;
+    const b = $("board"), br = b.getBoundingClientRect();
+    if (x > br.left) { if (y > br.bottom - 70) b.scrollTop += 14; else if (y < br.top + 50) b.scrollTop -= 14; }
+    const r = $("rail"), rr = r.getBoundingClientRect();
+    if (x < rr.right && x > rr.left) { if (y > rr.bottom - 60) r.scrollTop += 10; else if (y < rr.top + 40) r.scrollTop -= 10; }
+  }
+  function endDrag(cancel) {
+    if (!drag) return;
+    clearTimeout(drag.timer);
+    const d = drag; drag = null;
+    if (!d.active) return;
+    dragJustEnded = true; setTimeout(() => dragJustEnded = false, 350);
+    d.ghost.remove(); d.el.classList.remove("dragging");
+    document.querySelectorAll(".drop").forEach(e => e.classList.remove("drop"));
+    if (cancel || d.lastX == null) return;
+    const t = dropTarget(d.lastX, d.lastY);
+    if (!t || t === d.el) return;
+    const page = pageById(current), from = page.tiles.indexOf(d.tile);
+    if (from < 0) return;
+    if (t.dataset.page) {
+      const dest = pageById(t.dataset.page);
+      if (!dest || dest === page) return;
+      page.tiles.splice(from, 1); dest.tiles.push(d.tile);
+      save(); renderBoard(); toast("«" + d.tile.t + "» movido a «" + dest.name + "»");
+      return;
+    }
+    const target = page.tiles.find(x => x.id === t.dataset.tid);
+    if (!target) return;
+    const to = page.tiles.indexOf(target);
+    page.tiles.splice(from, 1); page.tiles.splice(to, 0, d.tile);
+    save(); renderBoard();
+  }
+  document.addEventListener("touchmove", e => {
+    if (!drag) return;
+    if (drag.active) e.preventDefault();
+    moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: false });
+  document.addEventListener("touchend", () => endDrag(false));
+  document.addEventListener("touchcancel", () => endDrag(true));
+  document.addEventListener("mousemove", e => drag && moveDrag(e.clientX, e.clientY));
+  document.addEventListener("mouseup", () => endDrag(false));
+  $("board").addEventListener("scroll", () => { if (drag && !drag.active) { clearTimeout(drag.timer); drag = null; } }, { passive: true });
+
+  // ---------- Shared editor helpers ----------
+  function readPhoto(file, cb, msgEl) {
+    if (!file) return;
+    msgEl.textContent = "Cargando la foto…";
+    const r = new FileReader();
+    r.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const S = 420, c = document.createElement("canvas"); c.width = c.height = S;
+        const side = Math.min(img.width, img.height);
+        c.getContext("2d").drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, S, S);
+        cb(c.toDataURL("image/jpeg", 0.82));
+        msgEl.textContent = "Foto lista. Pulse «Guardar».";
+      };
+      img.onerror = () => { msgEl.textContent = "No se pudo abrir esa foto. Pruebe con otra."; };
+      img.src = r.result;
+    };
+    r.readAsDataURL(file);
+  }
+  async function commitPhoto(data) {
+    const id = uid("p");
+    if (!(await putPhoto(id, data))) toast("Atención: este navegador no guardó la foto de forma permanente.");
+    return "photo:" + id;
+  }
+  function cleanupPhotos() {
+    const used = new Set();
+    board.pages.forEach(p => [p.icon, ...p.tiles.map(t => t.icon)].forEach(k => isPhoto(k) && used.add(k.slice(6))));
+    [...photos.keys()].forEach(id => { if (!used.has(id)) delPhoto(id); });
+  }
+  function buildLib(container, onPick) {
+    if (container.childElementCount) return;
+    LIBRARY.forEach(k => {
+      const b = document.createElement("button"); b.dataset.k = k; b.setAttribute("aria-label", "Dibujo");
+      const i = document.createElement("img"); i.alt = ""; i.loading = "lazy"; i.src = iconURL(k); b.appendChild(i);
+      b.onclick = () => onPick(k);
+      container.appendChild(b);
+    });
+  }
+  const markLib = (c, key) => c.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.k === key ? "true" : "false"));
+  function setPreview(el, key, pending, text, k) {
+    const pic = el.querySelector(".pic"), img = pic.querySelector("img");
+    img.src = pending || iconURL(key);
+    pic.className = "pic" + (pending || isPhoto(key) ? " photo" : "");
+    el.className = "ed-preview k-" + k;
+    el.lastElementChild.textContent = text || " ";
+  }
+  function twoTap(btn, label, fn) {
+    if (btn.dataset.armed === "1") { btn.dataset.armed = ""; btn.textContent = label; fn(); return; }
+    btn.dataset.armed = "1"; btn.textContent = "Pulse otra vez para confirmar";
+    clearTimeout(btn._t); btn._t = setTimeout(() => { btn.dataset.armed = ""; btn.textContent = label; }, 3500);
+  }
+  function fillPageSelect(sel, selected) {
+    sel.innerHTML = "";
+    board.pages.forEach(p => { const o = document.createElement("option"); o.value = p.id; o.textContent = p.name; if (p.id === selected) o.selected = true; sel.appendChild(o); });
+  }
+
+  // ---------- Tile editor ----------
+  let te = null;
+  function teRender() {
+    setPreview($("tPreview"), te.icon, te.pending, $("tText").value, pageById($("tCat").value).k);
+    markLib($("tLib"), te.pending ? null : te.icon);
+  }
+  function openTile(tile) {
+    te = { tile, page: current, icon: tile ? tile.icon : "🙂", pending: null, dupArmed: false };
+    $("tTitle").textContent = tile ? "Cambiar dibujo" : "Añadir un dibujo";
+    $("tText").value = tile ? tile.t : "";
+    fillPageSelect($("tCat"), current);
+    const act = $("tAction"); act.innerHTML = "";
+    const o0 = document.createElement("option"); o0.value = ""; o0.textContent = "Decirlo en voz alta"; act.appendChild(o0);
+    board.pages.forEach(p => { const o = document.createElement("option"); o.value = p.id; o.textContent = "Abrir la categoría «" + p.name + "»"; act.appendChild(o); });
+    act.value = tile && tile.nav && pageById(tile.nav) ? tile.nav : "";
+    $("tDelete").hidden = !tile; $("tMsg").textContent = ""; $("tMsg").className = "note"; $("tPhotoMsg").textContent = "";
+    buildLib($("tLib"), k => { te.icon = k; te.pending = null; teRender(); });
+    teRender();
+    $("tileView").hidden = false; $("tileView").scrollTop = 0;
+  }
+  $("tText").oninput = () => { te.dupArmed = false; teRender(); };
+  $("tCat").onchange = () => { te.dupArmed = false; teRender(); };
+  $("tHear").onclick = () => speak($("tText").value);
+  $("tCancel").onclick = () => { $("tileView").hidden = true; te = null; };
+  $("tCamera").onchange = e => { readPhoto(e.target.files[0], d => { te.pending = d; teRender(); }, $("tPhotoMsg")); e.target.value = ""; };
+  $("tFile").onchange = e => { readPhoto(e.target.files[0], d => { te.pending = d; teRender(); }, $("tPhotoMsg")); e.target.value = ""; };
+  $("tSave").onclick = async () => {
+    const t = $("tText").value.trim();
+    if (!t) { $("tMsg").textContent = "Escriba lo que debe decir en voz alta."; $("tText").focus(); return; }
+    const from = pageById(te.page), dest = pageById($("tCat").value);
+    const dup = dest.tiles.find(x => x !== te.tile && norm(x.t) === norm(t));
+    if (dup && !te.dupArmed) {
+      te.dupArmed = true; $("tMsg").className = "note alert";
+      $("tMsg").textContent = "Ya existe «" + dup.t + "» en «" + dest.name + "». Pulse «Guardar» otra vez si de verdad quiere tenerlo dos veces.";
+      return;
+    }
+    const icon = te.pending ? await commitPhoto(te.pending) : te.icon;
+    let tile = te.tile;
+    if (!tile) { tile = { id: uid("t") }; dest.tiles.push(tile); }
+    else if (from !== dest) { from.tiles.splice(from.tiles.indexOf(tile), 1); dest.tiles.push(tile); }
+    tile.icon = icon; tile.t = t;
+    const nav = $("tAction").value;
+    if (nav && nav !== dest.id) tile.nav = nav; else delete tile.nav;
+    await save(); cleanupPhotos();
+    $("tileView").hidden = true; te = null; renderBoard();
+    toast(from !== dest ? "Guardado en «" + dest.name + "»" : "Guardado");
+  };
+  $("tDelete").onclick = () => twoTap($("tDelete"), "Borrar este dibujo", async () => {
+    const p = pageById(te.page); p.tiles.splice(p.tiles.indexOf(te.tile), 1);
+    await save(); cleanupPhotos(); $("tileView").hidden = true; te = null; renderBoard(); toast("Borrado");
+  });
+
+  // ---------- Category editor ----------
+  let ce = null;
+  function ceRender() {
+    setPreview($("cPreview"), ce.icon, ce.pending, $("cName").value, ce.k);
+    markLib($("cLib"), ce.pending ? null : ce.icon);
+    $("cColors").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.k === ce.k ? "true" : "false"));
+    $("cMode").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === ce.mode ? "true" : "false"));
+    if (ce.page) { const i = board.pages.indexOf(ce.page); $("cPos").textContent = (i + 1) + " de " + board.pages.length; $("cUp").disabled = i === 0; $("cDown").disabled = i === board.pages.length - 1; }
+  }
+  function openCat(id) {
+    const page = id ? pageById(id) : null;
+    ce = { page, icon: page ? page.icon : "⭐", k: page ? page.k : "social", mode: page ? page.mode : "say", pending: null };
+    $("cTitle").textContent = page ? "Categoría «" + page.name + "»" : "Nueva categoría";
+    $("cName").value = page ? page.name : "";
+    $("cOrderRow").hidden = !page; $("cDelete").hidden = !page;
+    $("cMsg").textContent = ""; $("cMsg").className = "note"; $("cPhotoMsg").textContent = "";
+    buildLib($("cLib"), k => { ce.icon = k; ce.pending = null; ceRender(); });
+    const sw = $("cColors"); sw.innerHTML = "";
+    COLORS.forEach(k => { const b = document.createElement("button"); b.dataset.k = k; b.className = "k-" + k; b.setAttribute("aria-label", "Color"); b.onclick = () => { ce.k = k; ceRender(); }; sw.appendChild(b); });
+    ceRender();
+    $("catView").hidden = false; $("catView").scrollTop = 0;
+  }
+  $("cMode").querySelectorAll("button").forEach(b => b.onclick = () => { ce.mode = b.dataset.v; ceRender(); });
+  $("cName").oninput = ceRender;
+  $("cCancel").onclick = () => { $("catView").hidden = true; ce = null; };
+  $("cCamera").onchange = e => { readPhoto(e.target.files[0], d => { ce.pending = d; ceRender(); }, $("cPhotoMsg")); e.target.value = ""; };
+  $("cFile").onchange = e => { readPhoto(e.target.files[0], d => { ce.pending = d; ceRender(); }, $("cPhotoMsg")); e.target.value = ""; };
+  function moveCat(dir) {
+    const i = board.pages.indexOf(ce.page), j = i + dir;
+    if (j < 0 || j >= board.pages.length) return;
+    board.pages.splice(i, 1); board.pages.splice(j, 0, ce.page);
+    save(); renderRail(); ceRender();
+  }
+  $("cUp").onclick = () => moveCat(-1);
+  $("cDown").onclick = () => moveCat(1);
+  $("cSave").onclick = async () => {
+    const name = $("cName").value.trim();
+    if (!name) { $("cMsg").textContent = "Escriba un nombre."; $("cName").focus(); return; }
+    const icon = ce.pending ? await commitPhoto(ce.pending) : ce.icon;
+    let page = ce.page;
+    if (!page) { page = { id: uid("c"), tiles: [] }; board.pages.push(page); }
+    Object.assign(page, { name, icon, k: ce.k, mode: ce.mode });
+    const isNew = !ce.page;
+    await save(); cleanupPhotos();
+    $("catView").hidden = true; ce = null;
+    if (isNew) { current = page.id; toast("Categoría creada. Añada dibujos con el botón +."); } else toast("Guardado");
+    render();
+  };
+  $("cDelete").onclick = () => {
+    const n = ce.page.tiles.length;
+    if ($("cDelete").dataset.armed !== "1") {
+      $("cMsg").className = n ? "note alert" : "note";
+      $("cMsg").textContent = n ? "Se borrarán también sus " + n + " dibujos. Para conservarlos, muévalos antes a otra categoría." : "";
+    }
+    twoTap($("cDelete"), "Borrar categoría", async () => {
+      const gone = ce.page;
+      board.pages.splice(board.pages.indexOf(gone), 1);
+      board.pages.forEach(p => p.tiles = p.tiles.filter(t => t.nav !== gone.id));
+      await save(); cleanupPhotos();
+      $("catView").hidden = true; ce = null;
+      current = board.pages.length ? board.pages[0].id : ""; render(); toast("Categoría borrada");
+    });
+  };
+
+  // =====================================================================
+  // Settings (hold the button 1.5 s)
+  // =====================================================================
+  const gear = $("btnSettings"); let holdT = null, opened = false;
+  gear.addEventListener("pointerdown", e => {
+    e.preventDefault(); opened = false; gear.classList.add("holding");
+    holdT = setTimeout(() => { holdT = null; opened = true; gear.classList.remove("holding"); openSettings(); }, 1500);
+  });
+  const stopHold = hint => {
+    if (holdT) { clearTimeout(holdT); holdT = null; if (hint && !opened) toast("Familia: mantenga presionado para abrir los ajustes"); }
+    gear.classList.remove("holding");
+  };
+  gear.addEventListener("pointerup", () => stopHold(true));
+  gear.addEventListener("pointerleave", () => stopHold(false));
+  gear.addEventListener("pointercancel", () => stopHold(false));
+  gear.addEventListener("contextmenu", e => e.preventDefault());
+  gear.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openSettings(); } });
+
+  function openSettings() {
+    loadVoices();
+    $("speakEach").checked = settings.speakEach; $("showLabels").checked = settings.labels; $("guard").checked = settings.guard;
+    $("rate").value = settings.rate; $("rateVal").textContent = Math.round(settings.rate * 100) + "%";
+    document.querySelectorAll("#sizeSeg button").forEach(b => b.setAttribute("aria-pressed", +b.dataset.v === settings.tile ? "true" : "false"));
+    $("backupMsg").textContent = ""; $("appMsg").textContent = "";
+    $("settingsView").hidden = false; $("settingsView").scrollTop = 0;
+  }
+  $("sClose").onclick = () => { $("settingsView").hidden = true; };
+  $("sEdit").onclick = enterEdit;
+  $("voiceSel").onchange = e => { settings.voice = e.target.value; saveSettings(); };
+  $("rate").oninput = e => { settings.rate = +e.target.value; $("rateVal").textContent = Math.round(settings.rate * 100) + "%"; saveSettings(); };
+  $("speakEach").onchange = e => { settings.speakEach = e.target.checked; saveSettings(); };
+  $("showLabels").onchange = e => { settings.labels = e.target.checked; saveSettings(); applyLook(); };
+  $("guard").onchange = e => { settings.guard = e.target.checked; saveSettings(); };
+  document.querySelectorAll("#sizeSeg button").forEach(b => b.onclick = () => {
+    settings.tile = +b.dataset.v; saveSettings(); applyLook();
+    document.querySelectorAll("#sizeSeg button").forEach(x => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+  });
+  $("btnTest").onclick = () => speak("Hola. Tengo sed. Quiero un vaso de agua, por favor.");
+
+  // ---------- Backup ----------
+  $("bExport").onclick = async () => {
+    const used = {};
+    board.pages.forEach(p => [p.icon, ...p.tiles.map(t => t.icon)].forEach(k => { if (isPhoto(k) && photos.has(k.slice(6))) used[k.slice(6)] = photos.get(k.slice(6)); }));
+    const data = JSON.stringify({ app: "habla-conmigo", format: 2, saved: new Date().toISOString(), board, settings, photos: used });
+    const name = "habla-conmigo-copia-" + new Date().toISOString().slice(0, 10) + ".json";
+    const blob = new Blob([data], { type: "application/json" });
+    try {
+      const file = new File([blob], name, { type: "application/json" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: "Copia de Habla Conmigo" }); $("backupMsg").textContent = "Copia compartida."; return; }
+    } catch (e) { if (e && e.name === "AbortError") return; }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    $("backupMsg").textContent = "Copia guardada en Descargas: " + name;
+  };
+  $("bImport").onchange = e => {
+    const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+    const r = new FileReader();
+    r.onload = async () => {
+      try {
+        const d = JSON.parse(r.result);
+        if (d.app !== "habla-conmigo" || d.format !== 2 || !d.board || !Array.isArray(d.board.pages)) throw new Error();
+        for (const [id, data] of Object.entries(d.photos || {})) await putPhoto(id, data);
+        board = d.board; settings = Object.assign({}, DEFAULT_SETTINGS, d.settings || {});
+        await save(); await saveSettings(); cleanupPhotos();
+        current = board.pages[0] ? board.pages[0].id : ""; render(); openSettings();
+        $("backupMsg").textContent = "Copia restaurada (" + (d.saved || "").slice(0, 10) + ").";
+      } catch (err) { $("backupMsg").textContent = "Ese archivo no es una copia de Habla Conmigo."; }
+    };
+    r.readAsText(f);
+  };
+  $("bReset").onclick = () => twoTap($("bReset"), "Volver al tablero original", async () => {
+    board = clone(DEFAULT_BOARD); await save(); cleanupPhotos();
+    current = board.pages[0].id; render(); $("appMsg").textContent = "Tablero original restaurado. Las fotos y los cambios se borraron.";
+  });
+
+  // ---------- Install / update ----------
+  let installEvt = null;
+  window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; $("bInstall").hidden = false; });
+  $("bInstall").onclick = async () => { if (!installEvt) return; installEvt.prompt(); await installEvt.userChoice; installEvt = null; $("bInstall").hidden = true; };
+  $("bUpdate").onclick = async () => {
+    $("appMsg").textContent = "Buscando…";
+    try {
+      const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
+      if (!reg) { $("appMsg").textContent = "Las actualizaciones solo funcionan con la aplicación instalada."; return; }
+      await reg.update();
+      if (reg.installing || reg.waiting) { $("appMsg").textContent = "Actualizando…"; setTimeout(() => location.reload(), 1500); }
+      else $("appMsg").textContent = "Ya tiene la última versión (__VERSION__).";
+    } catch (e) { $("appMsg").textContent = "Sin conexión. Inténtelo más tarde."; }
+  };
+
+  // =====================================================================
+  // Misc + start
+  // =====================================================================
+  let toastT;
+  function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2800); }
+  let wl = null;
+  async function wake() { try { if (navigator.wakeLock && !wl) { wl = await navigator.wakeLock.request("screen"); wl.addEventListener("release", () => wl = null); } } catch (e) {} }
+  document.addEventListener("pointerdown", wake);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") wake(); });
+
+  (async function start() {
+    idb = await openDB();
+    try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+    const b = await kvGet("board"), s = await kvGet("settings");
+    board = b && Array.isArray(b.pages) ? b : clone(DEFAULT_BOARD);
+    settings = Object.assign({}, DEFAULT_SETTINGS, s || {});
+    await loadPhotos();
+    current = pageById(settings.cat) ? settings.cat : (board.pages[0] ? board.pages[0].id : "");
+    if (synth) { loadVoices(); synth.onvoiceschanged = loadVoices; } else loadVoices();
+    renderSentence(); render();
+    if ("serviceWorker" in navigator && location.protocol === "https:") { try { await navigator.serviceWorker.register("sw.js"); } catch (e) {} }
+    window.__hc = { get board() { return board; }, get current() { return current; }, enterEdit, beginDrag, moveDrag, endDrag, setDrag: d => drag = d, openTile, openCat };
+  })();
+})();
+</script>
+</body>
+</html>
