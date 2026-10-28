@@ -1,6 +1,6 @@
 // Service worker: keeps Habla Conmigo working without internet.
-// The build replaces e2b0ec78 with a hash of the app, so every new build installs a fresh cache.
-const CACHE = "habla-conmigo-e2b0ec78";
+// The build replaces e6186651 with a hash of the app, so every new build installs a fresh cache.
+const CACHE = "habla-conmigo-e6186651";
 const FILES = ["./", "./index.html", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/maskable-512.png"];
 
 self.addEventListener("install", e => {
